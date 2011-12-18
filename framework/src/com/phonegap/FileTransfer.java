@@ -99,9 +99,9 @@ public class FileTransfer extends Plugin {
                 Log.d(LOG_TAG, "****** About to return a result from upload");
                 return new PluginResult(PluginResult.Status.OK, r.toJSONObject());
             } else if (action.equals("download")) {
-                JSONObject r = download(source, target);
+                FileDownloadResult r = download(source, target, callbackId);
                 Log.d(LOG_TAG, "****** About to return a result from download");
-                return new PluginResult(PluginResult.Status.OK, r, "window.localFileSystem._castEntry");
+                return new PluginResult(PluginResult.Status.OK, r.toJSONObject(), FileDownloadResult.CAST_CODE);
             } else {
                 return new PluginResult(PluginResult.Status.INVALID_ACTION);
             }
@@ -373,10 +373,11 @@ public class FileTransfer extends Plugin {
      *
      * @param source        URL of the server to receive the file
      * @param target      	Full path of the file on the file system
-     * @return JSONObject 	the downloaded file
+     * @return FileDownloadResult An object with information about the download progress.
      */
-    public JSONObject download(String source, String target) throws IOException {
+    public FileDownloadResult download(String source, String target, String callbackId) throws IOException {
         try {
+            FileDownloadResult result = new FileDownloadResult();
             File file = new File(target);
 
             // create needed directories
@@ -388,20 +389,40 @@ public class FileTransfer extends Plugin {
             connection.setRequestMethod("GET");
             connection.setDoOutput(true);
             connection.connect();
-
+            
             Log.d(LOG_TAG, "Download file:" + url);
 
+            // set the response code
+            result.setResponseCode(connection.getResponseCode());
+            // set the content length
+            result.setBytesTotal(connection.getContentLength());
+            
             InputStream inputStream = connection.getInputStream();
             byte[] buffer = new byte[1024];
             int bytesRead = 0;
+            long totalBytes = 0;
 
             FileOutputStream outputStream = new FileOutputStream(file);
 
             // write bytes to file
-            while ( (bytesRead = inputStream.read(buffer)) > 0 ) {
+            bytesRead = inputStream.read(buffer);
+            PluginResult progress;
+
+            while ( bytesRead > 0 ) {
                 outputStream.write(buffer,0, bytesRead);
+                totalBytes += bytesRead;
+                result.setBytesReceived(totalBytes);
+                bytesRead = inputStream.read(buffer);
+                // fire the success callback to inform about the progress
+                progress = new PluginResult(PluginResult.Status.OK, result.toJSONObject(), FileDownloadResult.CAST_CODE);
+                progress.setKeepCallback(true);
+                success(progress, callbackId);
             }
 
+
+            // clean up
+            inputStream.close();
+            connection.disconnect();
             outputStream.close();
 
             Log.d(LOG_TAG, "Saved file: " + target);
@@ -409,7 +430,10 @@ public class FileTransfer extends Plugin {
             // create FileEntry object
             FileUtils fileUtil = new FileUtils();
 
-            return fileUtil.getEntry(file);
+
+            result.setFileEntry(fileUtil.getEntry(file));
+            result.setCompleted();
+            return result;
         } catch (Exception e) {
             Log.d(LOG_TAG, e.getMessage(), e);
             throw new IOException("Error while downloading");

@@ -22,33 +22,18 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * Encapsulates the result and/or status of uploading a file to a remote server.
+ * Encapsulates the result and/or status of a file transfer.
  */
-public class FileUploadResult extends FileTransferResult {
+public class FileTransferResult {
     
-    private long bytesSent = 0;         // bytes sent
-    private String response = null;     // HTTP response
+    private int responseCode = -1;      // HTTP response code
        
-    public long getBytesSent() {
-        return bytesSent;
+    public int getResponseCode() {
+        return responseCode;
     }
     
-    public void setBytesSent(long bytes) {
-        this.bytesSent = bytes;
-    }
-    
-    public String getResponse() {
-        return response;
-    }
-    
-    public void setResponse(String response) {
-        this.response = response;
+    public void setResponseCode(int responseCode) {
+        this.responseCode = responseCode;
     }
 
-    public JSONObject toJSONObject() throws JSONException {
-        return new JSONObject(
-                "{bytesSent:" + bytesSent + 
-                ",responseCode:" + getResponseCode() + 
-                ",response:" + JSONObject.quote(response) + "}");
-    }
 }
