@@ -59,7 +59,7 @@ public class FileDownloadResult extends FileTransferResult {
     
     public double getPercentCompleted() {
     	if(bytesTotal > 0)
-    		return (bytesReceived/bytesTotal);
+    		return new Double(bytesReceived) / new Double(bytesTotal) * 100.0;
     	else return -1; // feature not available
     }
     

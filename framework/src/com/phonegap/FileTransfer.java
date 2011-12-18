@@ -398,7 +398,7 @@ public class FileTransfer extends Plugin {
             result.setBytesTotal(connection.getContentLength());
             
             InputStream inputStream = connection.getInputStream();
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[4096];
             int bytesRead = 0;
             long totalBytes = 0;
 
@@ -407,16 +407,25 @@ public class FileTransfer extends Plugin {
             // write bytes to file
             bytesRead = inputStream.read(buffer);
             PluginResult progress;
+            
+            // last time the progress callback was executed
+            long lastTime = 0;
+            long curTime = 0;
 
             while ( bytesRead > 0 ) {
                 outputStream.write(buffer,0, bytesRead);
                 totalBytes += bytesRead;
                 result.setBytesReceived(totalBytes);
                 bytesRead = inputStream.read(buffer);
-                // fire the success callback to inform about the progress
-                progress = new PluginResult(PluginResult.Status.OK, result.toJSONObject(), FileDownloadResult.CAST_CODE);
-                progress.setKeepCallback(true);
-                success(progress, callbackId);
+                // fire the success callback to inform about the progress (only every 200 ms)
+                curTime = System.currentTimeMillis();
+                if((bytesRead == 0) || (curTime > (lastTime + 200)))
+                {
+                	progress = new PluginResult(PluginResult.Status.OK, result.toJSONObject(), FileDownloadResult.CAST_CODE);
+                	progress.setKeepCallback(true);
+                	success(progress, callbackId);
+                	lastTime = curTime;
+                }
             }
 
 
