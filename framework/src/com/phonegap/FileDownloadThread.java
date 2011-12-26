@@ -95,7 +95,10 @@ public class FileDownloadThread extends Thread {
                 	lastTime = curTime;
                 }
                 if(stopRequested)
+                {
+                	fileTransfer.error("Download canceled.", callbackId);
                 	return;
+                }
             }
 
 
