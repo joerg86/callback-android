@@ -24,7 +24,9 @@ PhoneGap.addResource("filetransfer");
  * FileTransfer uploads a file to a remote server.
  * @constructor
  */
-var FileTransfer = function() {};
+var FileTransfer = function() {
+    this.id = PhoneGap.createUUID();
+};
 
 /**
  * FileUploadResult
@@ -35,6 +37,15 @@ var FileUploadResult = function() {
     this.responseCode = null;
     this.response = null;
 };
+
+/**
+ * FileDownloadResult
+ * @constructor
+ */
+var FileDownloadResult = function() {
+    this.bytesReceived = 0;
+    this.responseCode = null;
+}
 
 /**
  * FileTransferError
@@ -91,7 +102,11 @@ FileTransfer.prototype.upload = function(filePath, server, successCallback, erro
  * @param errorCallback {Function}    Callback to be invoked upon error
  */
 FileTransfer.prototype.download = function(source, target, successCallback, errorCallback) {
-    PhoneGap.exec(successCallback, errorCallback, 'FileTransfer', 'download', [source, target]);
+    PhoneGap.exec(successCallback, errorCallback, 'FileTransfer', 'download', [source, target, this.id]);
+};
+
+FileTransfer.prototype.cancel = function(successCallback) {
+   PhoneGap.exec(successCallback, null, "FileTransfer", "cancel_download", [this.id]);
 };
 
 /**

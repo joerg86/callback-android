@@ -51,6 +51,7 @@ import android.webkit.CookieManager;
 
 import com.phonegap.api.Plugin;
 import com.phonegap.api.PluginResult;
+import java.util.HashMap;
 
 public class FileTransfer extends Plugin {
 
@@ -65,7 +66,14 @@ public class FileTransfer extends Plugin {
 
     private SSLSocketFactory defaultSSLSocketFactory = null;
     private HostnameVerifier defaultHostnameVerifier = null;
+    
+    private HashMap<String,FileDownloadThread> downloadWorkers;
 
+    public FileTransfer() {
+    	super();
+    	downloadWorkers = new HashMap<String,FileDownloadThread>();
+    }
+    
     /* (non-Javadoc)
     * @see com.phonegap.api.Plugin#execute(java.lang.String, org.json.JSONArray, java.lang.String)
     */
@@ -73,13 +81,29 @@ public class FileTransfer extends Plugin {
     public PluginResult execute(String action, JSONArray args, String callbackId) {
         String source = null;
         String target = null;
-        try {
-            source = args.getString(0);
-            target = args.getString(1);
+        String id = null;
+        if(action.equals("download") || action.equals("upload"))
+        {
+        	try {
+        		source = args.getString(0);
+        		target = args.getString(1);
+        		if(args.length() > 2)
+        			id = args.getString(2);
+        	}
+        	catch (JSONException e) {
+            	Log.d(LOG_TAG, "Missing source or target");
+            	return new PluginResult(PluginResult.Status.JSON_EXCEPTION, "Missing source or target");
+        	}
         }
-        catch (JSONException e) {
-            Log.d(LOG_TAG, "Missing source or target");
-            return new PluginResult(PluginResult.Status.JSON_EXCEPTION, "Missing source or target");
+        else if(action.equals("cancel_download"))
+        {
+        	try {
+        		id = args.getString(0);
+        	}
+        	catch (JSONException e) {
+        		Log.d(LOG_TAG, "Missing transfer ID.");
+        		return new PluginResult(PluginResult.Status.JSON_EXCEPTION, "Missing transfer ID.");
+        	}
         }
 
         try {
@@ -99,9 +123,33 @@ public class FileTransfer extends Plugin {
                 Log.d(LOG_TAG, "****** About to return a result from upload");
                 return new PluginResult(PluginResult.Status.OK, r.toJSONObject());
             } else if (action.equals("download")) {
-                FileDownloadResult r = download(source, target, callbackId);
-                Log.d(LOG_TAG, "****** About to return a result from download");
-                return new PluginResult(PluginResult.Status.OK, r.toJSONObject(), FileDownloadResult.CAST_CODE);
+                //FileDownloadResult r = download(source, target, callbackId);
+            	Log.d(LOG_TAG, "***** Starting download.");
+            	FileDownloadThread t = new FileDownloadThread(this, source, target, callbackId);
+            	downloadWorkers.put(id, t);
+            	t.start();
+            	PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
+            	result.setKeepCallback(true);
+            	return result;
+            } else if (action.equals("cancel_download")) {
+            	if(id != null)
+            	{
+            		FileDownloadThread t = downloadWorkers.get(id);
+            		if (t != null) {
+            			t.requestStop();
+            			try { 
+            				t.join();
+            			}
+            			catch (InterruptedException e)
+            			{
+            				// ignore
+            			}
+            		}
+            	
+            		Log.d(LOG_TAG, "****** Download canceled.");
+            	}
+            	return new PluginResult(PluginResult.Status.OK);
+      
             } else {
                 return new PluginResult(PluginResult.Status.INVALID_ACTION);
             }
